@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — TV Corporativa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#14161A; --surface:#1E2128; --surface-2:#262A33;
+    --accent:#4FD1C5; --accent-2:#F2A65A; --text:#F5F5F0; --muted:#8B92A0;
+    --danger:#E8615A; --border:rgba(255,255,255,0.08);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:'Inter',sans-serif; min-height:100vh; padding:40px 24px 100px;
+  }
+  h1{
+    font-family:'Space Grotesk',sans-serif; font-size:32px; margin:0 0 4px;
+  }
+  .sub{ color:var(--muted); margin:0 0 32px; font-size:15px; }
+  .wrap{ max-width:900px; margin:0 auto; }
+  .card{
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:14px; padding:24px; margin-bottom:20px;
+  }
+  .card h2{
+    font-family:'Space Grotesk',sans-serif; font-size:18px; margin:0 0 16px;
+    display:flex; align-items:center; gap:10px;
+  }
+  label{ display:block; font-size:13px; color:var(--muted); margin:14px 0 6px; }
+  input[type=text], input[type=password], input[type=number], textarea, select{
+    width:100%; background:var(--surface-2); border:1px solid var(--border);
+    color:var(--text); padding:10px 12px; border-radius:8px; font-family:inherit;
+    font-size:14px;
+  }
+  textarea{ min-height:70px; resize:vertical; }
+  .row{ display:flex; gap:16px; }
+  .row > div{ flex:1; }
+  button{
+    font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14px;
+    border:none; border-radius:8px; padding:10px 18px; cursor:pointer;
+    background:var(--accent); color:#0A0C0E;
+  }
+  button.secondary{ background:var(--surface-2); color:var(--text); border:1px solid var(--border); }
+  button.danger{ background:var(--danger); color:#fff; }
+  button.small{ padding:6px 12px; font-size:12px; }
+  .btn-row{ display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; }
+  #slideList{ display:flex; flex-direction:column; gap:14px; }
+  .slide-card{
+    background:var(--surface-2); border:1px solid var(--border);
+    border-radius:10px; padding:18px;
+  }
+  .slide-head{
+    display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;
+  }
+  .slide-head .tag{
+    font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--accent-2);
+    text-transform:uppercase; letter-spacing:1px;
+  }
+  .slide-actions{ display:flex; gap:6px; }
+  .slide-actions button{ padding:4px 10px; font-size:12px; }
+  .field-grid{ display:none; }
+  .field-grid.active{ display:block; }
+  #status{
+    position:fixed; bottom:0; left:0; right:0; padding:14px 24px;
+    font-family:'JetBrains Mono',monospace; font-size:13px;
+    background:var(--surface); border-top:1px solid var(--border);
+    color:var(--muted); text-align:center;
+  }
+  #status.ok{ color:var(--accent); }
+  #status.err{ color:var(--danger); }
+  .hint{ font-size:12px; color:var(--muted); margin-top:6px; }
+  .items-list{ display:flex; flex-direction:column; gap:6px; }
+  .items-list .item-row{ display:flex; gap:8px; }
+  .items-list input{ flex:1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Painel de administração</h1>
+  <p class="sub">Edite os slides da TV corporativa e salve direto no GitHub.</p>
+
+  <div class="card" id="connCard">
+    <h2>🔑 Conexão com o GitHub</h2>
+    <label>Usuário ou organização do GitHub</label>
+    <input type="text" id="ghOwner" placeholder="ex: minhaempresa">
+    <label>Nome do repositório</label>
+    <input type="text" id="ghRepo" placeholder="ex: tv-corporativa">
+    <div class="row">
+      <div>
+        <label>Branch</label>
+        <input type="text" id="ghBranch" value="main">
+      </div>
+      <div>
+        <label>Caminho do arquivo</label>
+        <input type="text" id="ghPath" value="config.json">
+      </div>
+    </div>
+    <label>Personal Access Token (fine-grained, só Contents: Read/Write neste repo)</label>
+    <input type="password" id="ghToken" placeholder="github_pat_...">
+    <p class="hint">Fica salvo só neste navegador (localStorage). Nunca é enviado a nenhum outro lugar além da API do GitHub.</p>
+    <div class="btn-row">
+      <button onclick="saveConnSettings()">Salvar dados de conexão</button>
+      <button class="secondary" onclick="loadConfigFromGithub()">Carregar slides do GitHub</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🖼️ Slides</h2>
+    <div id="slideList"></div>
+    <div class="btn-row">
+      <button class="secondary" onclick="addSlide('text')">+ Texto</button>
+      <button class="secondary" onclick="addSlide('image')">+ Imagem</button>
+      <button class="secondary" onclick="addSlide('clock')">+ Relógio</button>
+      <button class="secondary" onclick="addSlide('news')">+ Notícias</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>📤 Publicar</h2>
+    <p class="hint">Isso grava as mudanças no config.json do seu repositório. A TV atualiza sozinha em seguida.</p>
+    <div class="btn-row">
+      <button onclick="saveConfigToGithub()">Salvar no GitHub</button>
+    </div>
+  </div>
+</div>
+
+<div id="status">Pronto.</div>
+
+<script>
+let slides = [];
+let currentSha = null; // necessário pra atualizar arquivo existente no GitHub
+
+/* ---------- Configuração de conexão ---------- */
+function loadConnSettings(){
+  document.getElementById('ghOwner').value = localStorage.getItem('tv_gh_owner') || '';
+  document.getElementById('ghRepo').value = localStorage.getItem('tv_gh_repo') || '';
+  document.getElementById('ghBranch').value = localStorage.getItem('tv_gh_branch') || 'main';
+  document.getElementById('ghPath').value = localStorage.getItem('tv_gh_path') || 'config.json';
+  document.getElementById('ghToken').value = localStorage.getItem('tv_gh_token') || '';
+}
+function saveConnSettings(){
+  localStorage.setItem('tv_gh_owner', document.getElementById('ghOwner').value.trim());
+  localStorage.setItem('tv_gh_repo', document.getElementById('ghRepo').value.trim());
+  localStorage.setItem('tv_gh_branch', document.getElementById('ghBranch').value.trim());
+  localStorage.setItem('tv_gh_path', document.getElementById('ghPath').value.trim());
+  localStorage.setItem('tv_gh_token', document.getElementById('ghToken').value.trim());
+  setStatus('Dados de conexão salvos neste navegador.', 'ok');
+}
+function getConn(){
+  return {
+    owner: document.getElementById('ghOwner').value.trim(),
+    repo: document.getElementById('ghRepo').value.trim(),
+    branch: document.getElementById('ghBranch').value.trim() || 'main',
+    path: document.getElementById('ghPath').value.trim() || 'config.json',
+    token: document.getElementById('ghToken').value.trim(),
+  };
+}
+
+/* ---------- Base64 seguro para UTF-8 ---------- */
+function b64EncodeUnicode(str){
+  return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
+    (_, p1) => String.fromCharCode('0x' + p1)));
+}
+function b64DecodeUnicode(str){
+  return decodeURIComponent(atob(str).split('').map(
+    c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+}
+
+/* ---------- Ler / gravar config.json no GitHub ---------- */
+async function loadConfigFromGithub(){
+  const c = getConn();
+  if(!c.owner || !c.repo || !c.token){
+    setStatus('Preencha usuário, repositório e token antes de carregar.', 'err');
+    return;
+  }
+  setStatus('Carregando...', '');
+  try{
+    const url = `https://api.github.com/repos/${c.owner}/${c.repo}/contents/${c.path}?ref=${c.branch}`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${c.token}` } });
+    if(!res.ok) throw new Error(`GitHub respondeu ${res.status}`);
+    const data = await res.json();
+    currentSha = data.sha;
+    const jsonText = b64DecodeUnicode(data.content);
+    const parsed = JSON.parse(jsonText);
+    slides = parsed.slides || [];
+    renderSlideList();
+    setStatus('Slides carregados do GitHub com sucesso.', 'ok');
+  }catch(e){
+    setStatus('Erro ao carregar: ' + e.message, 'err');
+  }
+}
+
+async function saveConfigToGithub(){
+  const c = getConn();
+  if(!c.owner || !c.repo || !c.token){
+    setStatus('Preencha usuário, repositório e token antes de salvar.', 'err');
+    return;
+  }
+  collectSlidesFromForm();
+  setStatus('Salvando no GitHub...', '');
+  try{
+    const url = `https://api.github.com/repos/${c.owner}/${c.repo}/contents/${c.path}`;
+    const body = {
+      message: 'Atualiza slides da TV corporativa via painel admin',
+      content: b64EncodeUnicode(JSON.stringify({ slides }, null, 2)),
+      branch: c.branch,
+    };
+    if(currentSha) body.sha = currentSha;
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${c.token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    if(!res.ok){
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `GitHub respondeu ${res.status}`);
+    }
+    const result = await res.json();
+    currentSha = result.content.sha;
+    setStatus('Salvo! A TV vai atualizar sozinha em instantes.', 'ok');
+  }catch(e){
+    setStatus('Erro ao salvar: ' + e.message, 'err');
+  }
+}
+
+/* ---------- Slides: modelo de dados e formulário ---------- */
+function addSlide(type){
+  const base = { type, duration: 8 };
+  if(type === 'text') Object.assign(base, { title:'Novo título', body:'', color:'#4FD1C5', fontSize:'80px', bodyColor:'#8B92A0', bodySize:'32px', background:'#1E2128' });
+  if(type === 'image') Object.assign(base, { src:'imagens/imagem-01.jpg', caption:'', captionColor:'#F2A65A', captionSize:'44px', animation:'zoom' });
+  if(type === 'news') Object.assign(base, { label:'AVISOS INTERNOS', items:[''] });
+  slides.push(base);
+  renderSlideList();
+}
+function removeSlide(i){
+  slides.splice(i, 1);
+  renderSlideList();
+}
+function moveSlide(i, dir){
+  const j = i + dir;
+  if(j < 0 || j >= slides.length) return;
+  [slides[i], slides[j]] = [slides[j], slides[i]];
+  renderSlideList();
+}
+
+function renderSlideList(){
+  const list = document.getElementById('slideList');
+  list.innerHTML = '';
+  slides.forEach((slide, i) => {
+    const card = document.createElement('div');
+    card.className = 'slide-card';
+
+    const head = document.createElement('div');
+    head.className = 'slide-head';
+    head.innerHTML = `<span class="tag">${i+1}. ${slide.type}</span>`;
+    const actions = document.createElement('div');
+    actions.className = 'slide-actions';
+    actions.innerHTML = `
+      <button class="secondary" onclick="moveSlide(${i},-1)">↑</button>
+      <button class="secondary" onclick="moveSlide(${i},1)">↓</button>
+      <button class="danger" onclick="removeSlide(${i})">Excluir</button>`;
+    head.appendChild(actions);
+    card.appendChild(head);
+
+    card.appendChild(buildFieldsForSlide(slide, i));
+    list.appendChild(card);
+  });
+}
+
+function buildFieldsForSlide(slide, i){
+  const wrap = document.createElement('div');
+
+  function field(labelText, key, value, type='text'){
+    const l = document.createElement('label');
+    l.textContent = labelText;
+    const input = document.createElement(type === 'textarea' ? 'textarea' : 'input');
+    if(type !== 'textarea') input.type = type;
+    input.value = value ?? '';
+    input.oninput = () => { slides[i][key] = input.value; };
+    wrap.appendChild(l);
+    wrap.appendChild(input);
+    return input;
+  }
+
+  field('Duração (segundos)', 'duration', slide.duration, 'number');
+
+  if(slide.type === 'text'){
+    field('Título', 'title', slide.title);
+    field('Texto de apoio', 'body', slide.body, 'textarea');
+    const row = document.createElement('div'); row.className = 'row';
+    wrap.appendChild(row);
+    field.call(null); // no-op to keep order readable
+    // cor / tamanho em duas colunas
+    const c1 = document.createElement('div'); const c2 = document.createElement('div');
+    row.appendChild(c1); row.appendChild(c2);
+    const l1 = document.createElement('label'); l1.textContent = 'Cor do título'; c1.appendChild(l1);
+    const i1 = document.createElement('input'); i1.type='text'; i1.value = slide.color||''; i1.oninput=()=>slides[i].color=i1.value; c1.appendChild(i1);
+    const l2 = document.createElement('label'); l2.textContent = 'Tamanho do título'; c2.appendChild(l2);
+    const i2 = document.createElement('input'); i2.type='text'; i2.value = slide.fontSize||''; i2.oninput=()=>slides[i].fontSize=i2.value; c2.appendChild(i2);
+    field('Cor de fundo', 'background', slide.background);
+  }
+
+  if(slide.type === 'image'){
+    field('Caminho da imagem (ex: imagens/imagem-03.jpg)', 'src', slide.src);
+    field('Legenda (opcional)', 'caption', slide.caption);
+    field('Cor da legenda', 'captionColor', slide.captionColor);
+    const l = document.createElement('label'); l.textContent = 'Animação';
+    const sel = document.createElement('select');
+    ['nenhuma','zoom'].forEach(opt => {
+      const o = document.createElement('option'); o.value = opt === 'nenhuma' ? '' : opt; o.textContent = opt;
+      if((slide.animation||'') === o.value) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.onchange = () => slides[i].animation = sel.value;
+    wrap.appendChild(l); wrap.appendChild(sel);
+  }
+
+  if(slide.type === 'news'){
+    field('Título da lista', 'label', slide.label);
+    const l = document.createElement('label'); l.textContent = 'Itens';
+    wrap.appendChild(l);
+    const itemsWrap = document.createElement('div'); itemsWrap.className = 'items-list';
+    wrap.appendChild(itemsWrap);
+
+    function renderItems(){
+      itemsWrap.innerHTML = '';
+      (slide.items || []).forEach((item, idx) => {
+        const row = document.createElement('div'); row.className = 'item-row';
+        const inp = document.createElement('input'); inp.type='text'; inp.value = item;
+        inp.oninput = () => slide.items[idx] = inp.value;
+        const del = document.createElement('button'); del.className='danger small'; del.textContent='x';
+        del.onclick = () => { slide.items.splice(idx,1); renderItems(); };
+        row.appendChild(inp); row.appendChild(del);
+        itemsWrap.appendChild(row);
+      });
+    }
+    renderItems();
+    const addBtn = document.createElement('button');
+    addBtn.className = 'secondary small'; addBtn.textContent = '+ item'; addBtn.style.marginTop='8px';
+    addBtn.onclick = () => { slide.items = slide.items || []; slide.items.push(''); renderItems(); };
+    wrap.appendChild(addBtn);
+  }
+
+  return wrap;
+}
+
+function collectSlidesFromForm(){
+  // Os campos já atualizam o array `slides` diretamente via oninput,
+  // então aqui só garantimos que duration seja número.
+  slides.forEach(s => { s.duration = Number(s.duration) || 8; });
+}
+
+function setStatus(msg, kind){
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = kind || '';
+}
+
+loadConnSettings();
+</script>
+</body>
+</html>
